@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="vi" class="dark h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DevVision - Ứng Dụng Web Tương Tác Nhấn/Tap</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#eff6ff',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- FontAwesome Icons CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- Google Fonts Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Stylesheet tối ưu Không Cuộn & Thao Tác Tap -->
+    <style>
+        /* Khóa cuộn trang hoàn toàn */
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Hiệu ứng gõ chữ */
+        .typewriter-cursor::after {
+            content: '|';
+            animation: blink 0.8s infinite;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        /* Chuyển mượt giữa các tab */
+        .tab-panel {
+            animation: fadeInScale 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes fadeInScale {
+            from {
+                opacity: 0;
+                transform: scale(0.98);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        /* Custom Scrollbar nội bộ cho màn hình cực nhỏ nếu cần */
+        .custom-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: rgba(156, 163, 175, 0.5);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 h-full flex flex-col justify-between selection:bg-blue-500 selection:text-white">
+
+    <!-- 1. HEADER & TAB NAVIGATION (TOP BAR) -->
+    <header class="h-16 sm:h-20 flex-shrink-0 bg-white/90 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800 backdrop-blur-md z-30 px-4 sm:px-8 flex items-center justify-between">
+        <!-- Logo -->
+        <div onclick="switchTab(1)" class="flex items-center gap-3 cursor-pointer group">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform">
+                <i class="fa-solid fa-hand-pointer text-base"></i>
+            </div>
+            <span class="text-lg sm:text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-500 bg-clip-text text-transparent">
+                DevTap<span class="text-slate-400 font-normal text-xs sm:text-sm">.app</span>
+            </span>
+        </div>
+
+        <!-- Desktop Navigation Tabs (Bấm / Click-based) -->
+        <nav class="hidden md:flex items-center space-x-2 bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-2xl border border-slate-200/60 dark:border-slate-700/60">
+            <button id="nav-btn-1" onclick="switchTab(1)" class="nav-tab-btn active px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all">
+                <i class="fa-solid fa-house mr-1.5"></i> 1. Trang chủ
+            </button>
+            <button id="nav-btn-2" onclick="switchTab(2)" class="nav-tab-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all">
+                <i class="fa-solid fa-cubes mr-1.5"></i> 2. Dịch vụ
+            </button>
+            <button id="nav-btn-3" onclick="switchTab(3)" class="nav-tab-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all">
+                <i class="fa-solid fa-folder-open mr-1.5"></i> 3. Dự án
+            </button>
+            <button id="nav-btn-4" onclick="switchTab(4)" class="nav-tab-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all">
+                <i class="fa-solid fa-id-card mr-1.5"></i> 4. Kỹ năng & Liên hệ
+            </button>
+        </nav>
+
+        <!-- Right Controls: Dark Mode Toggle -->
+        <div class="flex items-center gap-2 sm:gap-3">
+            <button id="themeToggle" aria-label="Đổi giao diện Sáng/Tối" class="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                <i id="themeIcon" class="fa-solid fa-moon text-base sm:text-lg"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- 2. MAIN VIEWPORT (FIXED CONTAINER - NO SCROLL) -->
+    <main class="flex-1 relative overflow-hidden p-3 sm:p-6 lg:p-8 flex items-center justify-center">
+
+        <!-- TAB 1: TRANG CHỦ (HERO TAB) -->
+        <section id="tab-1" class="tab-panel w-full h-full max-w-6xl mx-auto flex flex-col justify-between custom-scroll overflow-y-auto">
+            <div class="my-auto grid lg:grid-cols-12 gap-8 items-center py-4">
+                <!-- Text Content -->
+                <div class="lg:col-span-7 space-y-4 sm:space-y-6 text-center lg:text-left">
+                    <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 text-xs font-semibold">
+                        <span class="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span>
+                        Ứng Dụng Nhấn / Tap 100% Không Cuộn
+                    </div>
+
+                    <h1 class="text-2xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-tight">
+                        Trải Nghiệm Trang Web <br>
+                        <span class="bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-500 bg-clip-text text-transparent">Điều Hướng Dạng Tab</span>
+                    </h1>
+
+                    <p class="text-sm sm:text-lg text-slate-600 dark:text-slate-300 min-h-[2.5rem]">
+                        Công nghệ nổi bật: <span id="typewriter" class="font-bold text-blue-600 dark:text-blue-400 typewriter-cursor"></span>
+                    </p>
+
+                    <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-xl mx-auto lg:mx-0">
+                        Hệ thống giao diện vừa vặn 100% màn hình. Chuyển đổi linh hoạt giữa các tính năng chỉ bằng thao tác chạm/click đơn giản mà không cần cuộn trang.
+                    </p>
+
+                    <!-- Interactive Action Buttons -->
+                    <div class="flex flex-wrap items-center justify-center lg:justify-start gap-3 pt-2">
+                        <button onclick="switchTab(2)" class="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-semibold text-xs sm:text-sm shadow-lg shadow-blue-500/25 transition-all flex items-center gap-2">
+                            <span>Khám phá Dịch vụ</span>
+                            <i class="fa-solid fa-arrow-right text-xs"></i>
+                        </button>
+                        <button onclick="switchTab(4)" class="px-6 py-3 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 active:scale-95 text-slate-700 dark:text-slate-200 font-semibold text-xs sm:text-sm transition-all flex items-center gap-2">
+                            <i class="fa-solid fa-paper-plane text-xs"></i>
+                            <span>Liên hệ ngay</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Graphic Card / Preview Interactive Shell -->
+                <div class="lg:col-span-5">
+                    <div class="bg-white dark:bg-slate-800 p-5 sm:p-6 rounded-2xl shadow-xl border border-slate-200/80 dark:border-slate-700/80 space-y-4">
+                        <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-3">
+                            <div class="flex items-center space-x-2">
+                                <span class="w-3 h-3 rounded-full bg-red-500"></span>
+                                <span class="w-3 h-3 rounded-full bg-yellow-500"></span>
+                                <span class="w-3 h-3 rounded-full bg-green-500"></span>
+                            </div>
+                            <span class="text-xs font-mono text-slate-400">ClickApp.js</span>
+                        </div>
+
+                        <!-- Stats Box Grid -->
+                        <div class="grid grid-cols-2 gap-3">
+                            <div onclick="switchTab(2)" class="p-3.5 rounded-xl bg-blue-50 dark:bg-slate-900 border border-blue-100 dark:border-slate-700/50 cursor-pointer hover:border-blue-500 transition-all">
+                                <p class="text-xs text-slate-400">Dịch vụ số</p>
+                                <p class="text-lg font-bold text-blue-600 dark:text-blue-400">04 Thẻ</p>
+                                <p class="text-[10px] text-slate-500 mt-1">Nhấn để xem <i class="fa-solid fa-chevron-right text-[8px]"></i></p>
+                            </div>
+                            <div onclick="switchTab(3)" class="p-3.5 rounded-xl bg-purple-50 dark:bg-slate-900 border border-purple-100 dark:border-slate-700/50 cursor-pointer hover:border-purple-500 transition-all">
+                                <p class="text-xs text-slate-400">Dự án mẫu</p>
+                                <p class="text-lg font-bold text-purple-600 dark:text-purple-400">03 Mẫu</p>
+                                <p class="text-[10px] text-slate-500 mt-1">Nhấn để xem <i class="fa-solid fa-chevron-right text-[8px]"></i></p>
+                            </div>
+                        </div>
+
+                        <div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                            <span class="flex items-center gap-2">
+                                <i class="fa-solid fa-circle-check"></i> W3C Validator Passed
+                            </span>
+                            <span class="font-bold">100% Valid</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: DỊCH VỤ (SERVICES TAB) -->
+        <section id="tab-2" class="tab-panel hidden w-full h-full max-w-6xl mx-auto flex-col justify-between custom-scroll overflow-y-auto">
+            <div class="my-auto space-y-4 py-2">
+                <div class="text-center max-w-2xl mx-auto space-y-1">
+                    <span class="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">Phần phụ 2</span>
+                    <h2 class="text-2xl sm:text-3xl font-extrabold">Danh Mục Dịch Vụ Cung Cấp</h2>
+                    <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Nhấn vào từng thẻ dịch vụ bên dưới để xem thông tin chi tiết qua Modal</p>
+                </div>
+
+                <!-- Service Cards Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
+                    <!-- Service 1 -->
+                    <div onclick="openModal('Thiết Kế Web Responsive', 'Xây dựng website hoàn chỉnh thích ứng mọi kích thước màn hình di động, máy tính bảng và máy tính bàn với mã nguồn Tailwind CSS sạch và tối ưu SEO.', 'Web Design', 'fa-laptop-code', 'blue')" class="group bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 hover:border-blue-500 dark:hover:border-blue-500 shadow-sm hover:shadow-lg transition-all cursor-pointer active:scale-98">
+                        <div class="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xl mb-3 group-hover:bg-blue-600 group-hover:text-white transition-all">
+                            <i class="fa-solid fa-laptop-code"></i>
+                        </div>
+                        <h3 class="font-bold text-base mb-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">Thiết Kế Web</h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">Giao diện chuẩn Responsive, tốc độ tải nhanh, chuẩn SEO.</p>
+                        <div class="mt-4 flex items-center text-xs font-semibold text-blue-600 dark:text-blue-400">
+                            <span>Nhấn xem chi tiết</span>
+                            <i class="fa-solid fa-arrow-right text-[10px] ml-1 group-hover:translate-x-1 transition-transform"></i>
+                        </div>
+                    </div>
+
+                    <!-- Service 2 -->
+                    <div onclick="openModal('Phát Triển App Di Động', 'Lập trình ứng dụng di động iOS & Android ưu tiên trải nghiệm thao tác vuốt tap thân thiện, hiệu năng cao và tiết kiệm bộ nhớ.', 'Mobile App', 'fa-mobile-screen-button', 'indigo')" class="group bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 hover:border-indigo-500 dark:hover:border-indigo-500 shadow-sm hover:shadow-lg transition-all cursor-pointer active:scale-98">
+                        <div class="w-12 h-12 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xl mb-3 group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                            <i class="fa-solid fa-mobile-screen-button"></i>
+                        </div>
+                        <h3 class="font-bold text-base mb-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">App Di Động</h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">Tối ưu thao tác chạm Tap/Touch đa nền tảng iOS & Android.</p>
+                        <div class="mt-4 flex items-center text-xs font-semibold text-indigo-600 dark:text-indigo-400">
+                            <span>Nhấn xem chi tiết</span>
+                            <i class="fa-solid fa-arrow-right text-[10px] ml-1 group-hover:translate-x-1 transition-transform"></i>
+                        </div>
+                    </div>
+
+                    <!-- Service 3 -->
+                    <div onclick="openModal('Thiết Kế Giao Diện UI/UX', 'Thiết kế hệ thống giao diện người dùng theo chuẩn thiết kế hiện đại, quy hoạch màu sắc, Typography và các nút bấm Tap Target đạt tiêu chuẩn.', 'UI/UX Design', 'fa-palette', 'purple')" class="group bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 hover:border-purple-500 dark:hover:border-purple-500 shadow-sm hover:shadow-lg transition-all cursor-pointer active:scale-98">
+                        <div class="w-12 h-12 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center text-xl mb-3 group-hover:bg-purple-600 group-hover:text-white transition-all">
+                            <i class="fa-solid fa-palette"></i>
+                        </div>
+                        <h3 class="font-bold text-base mb-1 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">Thiết Kế UI/UX</h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">Quy hoạch nút bấm trực quan, màu sắc hiện đại và dễ nhìn.</p>
+                        <div class="mt-4 flex items-center text-xs font-semibold text-purple-600 dark:text-purple-400">
+                            <span>Nhấn xem chi tiết</span>
+                            <i class="fa-solid fa-arrow-right text-[10px] ml-1 group-hover:translate-x-1 transition-transform"></i>
+                        </div>
+                    </div>
+
+                    <!-- Service 4 -->
+                    <div onclick="openModal('Tối Ưu Chuẩn W3C & Tốc Độ', 'Rà soát toàn bộ mã nguồn HTML/CSS bằng công cụ W3C Validator, tối ưu chỉ số Google Lighthouse giúp trang web đạt tốc độ tối đa.', 'Optimization', 'fa-gauge-high', 'emerald')" class="group bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 hover:border-emerald-500 dark:hover:border-emerald-500 shadow-sm hover:shadow-lg transition-all cursor-pointer active:scale-98">
+                        <div class="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xl mb-3 group-hover:bg-emerald-600 group-hover:text-white transition-all">
+                            <i class="fa-solid fa-gauge-high"></i>
+                        </div>
+                        <h3 class="font-bold text-base mb-1 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">Tối Ưu W3C & SEO</h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">Đảm bảo mã nguồn đạt chuẩn W3C Validator không có lỗi.</p>
+                        <div class="mt-4 flex items-center text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                            <span>Nhấn xem chi tiết</span>
+                            <i class="fa-solid fa-arrow-right text-[10px] ml-1 group-hover:translate-x-1 transition-transform"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: DỰ ÁN (PORTFOLIO TAB) -->
+        <section id="tab-3" class="tab-panel hidden w-full h-full max-w-6xl mx-auto flex-col justify-between custom-scroll overflow-y-auto">
+            <div class="my-auto space-y-4 py-2">
+                <div class="text-center max-w-2xl mx-auto space-y-1">
+                    <span class="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">Phần phụ 3</span>
+                    <h2 class="text-2xl sm:text-3xl font-extrabold">Các Dự Án Đã Thực Hiện</h2>
+                    <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Nhấn vào từng dự án để xem ảnh minh họa và công nghệ tích hợp</p>
+                </div>
+
+                <!-- Projects Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-5 pt-2">
+                    <!-- Project 1 -->
+                    <div class="bg-white dark:bg-slate-800 rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-700/80 shadow-sm hover:shadow-xl transition-all">
+                        <div class="h-36 bg-gradient-to-tr from-blue-600 to-indigo-700 p-4 flex flex-col justify-between text-white relative">
+                            <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-white/20 backdrop-blur w-max">Sàn Thương Mại</span>
+                            <i class="fa-solid fa-cart-shopping text-4xl opacity-20 absolute right-4 bottom-4"></i>
+                            <p class="text-lg font-bold">ShopX Mobile App</p>
+                        </div>
+                        <div class="p-4 space-y-3">
+                            <p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">Sàn thương mại điện tử mua sắm cực nhanh tích hợp ví điện tử và thanh toán 1-tap.</p>
+                            <button onclick="openModal('ShopX - Sàn Thương Mại Điện Tử', 'Dự án ứng dụng mua sắm trực tuyến tối ưu hóa cho di động. Sử dụng cấu trúc mã React & Tailwind CSS giúp đạt tốc độ render vượt trội.', 'React, Tailwind, Node.js', 'fa-cart-shopping', 'blue')" class="w-full py-2 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 text-xs font-semibold transition-all">
+                                Xem chi tiết dự án
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Project 2 -->
+                    <div class="bg-white dark:bg-slate-800 rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-700/80 shadow-sm hover:shadow-xl transition-all">
+                        <div class="h-36 bg-gradient-to-tr from-purple-600 to-pink-600 p-4 flex flex-col justify-between text-white relative">
+                            <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-white/20 backdrop-blur w-max">Tài Chính SaaS</span>
+                            <i class="fa-solid fa-chart-pie text-4xl opacity-20 absolute right-4 bottom-4"></i>
+                            <p class="text-lg font-bold">FinData Dashboard</p>
+                        </div>
+                        <div class="p-4 space-y-3">
+                            <p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">Bảng điều khiển trực quan hóa dữ liệu tài chính với hệ thống biểu đồ tương tác chạm.</p>
+                            <button onclick="openModal('FinData - Bảng Điều Khiển Tài Chính', 'Hệ thống quản lý tài chính doanh nghiệp với giao diện Dashboard đa thông số, tối ưu tương tác click/tap trên máy tính bảng.', 'Vue.js, Tailwind, Chart.js', 'fa-chart-pie', 'purple')" class="w-full py-2 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-purple-600 hover:text-white dark:hover:bg-purple-600 text-xs font-semibold transition-all">
+                                Xem chi tiết dự án
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Project 3 -->
+                    <div class="bg-white dark:bg-slate-800 rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-700/80 shadow-sm hover:shadow-xl transition-all">
+                        <div class="h-36 bg-gradient-to-tr from-emerald-600 to-teal-700 p-4 flex flex-col justify-between text-white relative">
+                            <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-white/20 backdrop-blur w-max">Y Tế Số</span>
+                            <i class="fa-solid fa-heart-pulse text-4xl opacity-20 absolute right-4 bottom-4"></i>
+                            <p class="text-lg font-bold">TeleHealth Care</p>
+                        </div>
+                        <div class="p-4 space-y-3">
+                            <p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">Ứng dụng tư vấn y tế và đặt lịch khám bác sĩ trực tuyến tiện lợi cho người dùng.</p>
+                            <button onclick="openModal('TeleHealth - Y Tế Thông Minh', 'Nền tảng kết nối bệnh nhân và bác sĩ từ xa. Giao diện đơn giản giúp người lớn tuổi dễ dàng thao tác bấm chọn lịch khám.', 'Flutter, Tailwind CSS, Firebase', 'fa-heart-pulse', 'emerald')" class="w-full py-2 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-600 text-xs font-semibold transition-all">
+                                Xem chi tiết dự án
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: KỸ NĂNG & LIÊN HỆ (SKILLS & CONTACT TAB) -->
+        <section id="tab-4" class="tab-panel hidden w-full h-full max-w-6xl mx-auto flex-col justify-between custom-scroll overflow-y-auto">
+            <div class="my-auto space-y-4 py-2">
+                <div class="text-center max-w-2xl mx-auto space-y-1">
+                    <span class="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">Phần phụ 4</span>
+                    <h2 class="text-2xl sm:text-3xl font-extrabold">Kỹ Năng & Biểu Mẫu Liên Hệ</h2>
+                    <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Thanh tiến trình tự động nạp % khi nhấn chuyển sang Tab này</p>
+                </div>
+
+                <div class="grid lg:grid-cols-12 gap-6 pt-2 items-start">
+                    <!-- Left Column: Skill Bars -->
+                    <div class="lg:col-span-6 bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 space-y-4 shadow-sm">
+                        <h3 class="font-bold text-sm sm:text-base flex items-center gap-2">
+                            <i class="fa-solid fa-sliders text-blue-600"></i> Chỉ Số Năng Lực Kỹ Thuật
+                        </h3>
+
+                        <!-- Skill 1 -->
+                        <div class="space-y-1.5">
+                            <div class="flex justify-between text-xs font-semibold">
+                                <span>HTML5 / CSS3 / Tailwind CSS</span>
+                                <span class="text-blue-600 dark:text-blue-400">95%</span>
+                            </div>
+                            <div class="w-full h-2.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                                <div class="skill-bar h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full w-0 transition-all duration-1000" data-width="95%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Skill 2 -->
+                        <div class="space-y-1.5">
+                            <div class="flex justify-between text-xs font-semibold">
+                                <span>JavaScript (ES6+) & DOM Interaction</span>
+                                <span class="text-blue-600 dark:text-blue-400">90%</span>
+                            </div>
+                            <div class="w-full h-2.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                                <div class="skill-bar h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full w-0 transition-all duration-1000" data-width="90%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Skill 3 -->
+                        <div class="space-y-1.5">
+                            <div class="flex justify-between text-xs font-semibold">
+                                <span>Thiết kế Tap-friendly & UI/UX</span>
+                                <span class="text-blue-600 dark:text-blue-400">88%</span>
+                            </div>
+                            <div class="w-full h-2.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                                <div class="skill-bar h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full w-0 transition-all duration-1000" data-width="88%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Skill 4 -->
+                        <div class="space-y-1.5">
+                            <div class="flex justify-between text-xs font-semibold">
+                                <span>Kiểm tra chuẩn W3C Validator</span>
+                                <span class="text-blue-600 dark:text-blue-400">98%</span>
+                            </div>
+                            <div class="w-full h-2.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                                <div class="skill-bar h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full w-0 transition-all duration-1000" data-width="98%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Contact Form -->
+                    <div class="lg:col-span-6 bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-sm">
+                        <form id="contactForm" onsubmit="handleFormSubmit(event)" class="space-y-3">
+                            <h3 class="font-bold text-sm sm:text-base flex items-center gap-2">
+                                <i class="fa-solid fa-paper-plane text-blue-600"></i> Gửi Tin Nhắn Nhanh
+                            </h3>
+
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label for="fullName" class="block text-[11px] font-semibold mb-1">Họ tên <span class="text-red-500">*</span></label>
+                                    <input type="text" id="fullName" required placeholder="Nguyễn Văn A" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs">
+                                </div>
+                                <div>
+                                    <label for="email" class="block text-[11px] font-semibold mb-1">Email <span class="text-red-500">*</span></label>
+                                    <input type="email" id="email" required placeholder="name@domain.com" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label for="message" class="block text-[11px] font-semibold mb-1">Nội dung <span class="text-red-500">*</span></label>
+                                <textarea id="message" rows="2" required placeholder="Nhập tin nhắn..." class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"></textarea>
+                            </div>
+
+                            <button type="submit" class="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white font-semibold text-xs transition-all shadow-md shadow-blue-500/20">
+                                Nhấn gửi ngay
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- 3. BOTTOM CONTROL BAR (PREV / NEXT NAVIGATION & MOBILE TABS) -->
+    <footer class="h-16 sm:h-20 flex-shrink-0 bg-white/95 dark:bg-slate-900/95 border-t border-slate-200 dark:border-slate-800 px-4 sm:px-8 flex items-center justify-between z-30">
+        <!-- Nút Trang trước (Prev Button) -->
+        <button id="prevTabBtn" onclick="prevTab()" class="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 text-slate-700 dark:text-slate-200 font-semibold text-xs sm:text-sm transition-all flex items-center gap-2">
+            <i class="fa-solid fa-chevron-left text-xs"></i>
+            <span class="hidden sm:inline">Trang trước</span>
+        </button>
+
+        <!-- Indicator Center (Trạng thái trang) -->
+        <div class="flex items-center gap-2">
+            <!-- Mobile Tab Bar icons -->
+            <div class="flex md:hidden items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                <button id="mobile-nav-btn-1" onclick="switchTab(1)" class="mobile-nav-btn p-2 rounded-lg text-xs"><i class="fa-solid fa-house"></i></button>
+                <button id="mobile-nav-btn-2" onclick="switchTab(2)" class="mobile-nav-btn p-2 rounded-lg text-xs"><i class="fa-solid fa-cubes"></i></button>
+                <button id="mobile-nav-btn-3" onclick="switchTab(3)" class="mobile-nav-btn p-2 rounded-lg text-xs"><i class="fa-solid fa-folder-open"></i></button>
+                <button id="mobile-nav-btn-4" onclick="switchTab(4)" class="mobile-nav-btn p-2 rounded-lg text-xs"><i class="fa-solid fa-id-card"></i></button>
+            </div>
+            <!-- Text step indicator -->
+            <span id="stepIndicator" class="text-xs font-bold font-mono px-3 py-1.5 rounded-full bg-blue-50 dark:bg-slate-800 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-slate-700">
+                Trang 1 / 4
+            </span>
+        </div>
+
+        <!-- Nút Trang tiếp theo (Next Button) -->
+        <button id="nextTabBtn" onclick="nextTab()" class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-semibold text-xs sm:text-sm transition-all shadow-md shadow-blue-500/20 flex items-center gap-2">
+            <span class="hidden sm:inline">Trang tiếp</span>
+            <i class="fa-solid fa-chevron-right text-xs"></i>
+        </button>
+    </footer>
+
+    <!-- 4. MODAL POPUP HIỂN THỊ CHI TIẾT (TƯƠNG TÁC TAP) -->
+    <div id="infoModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+        <div class="bg-white dark:bg-slate-800 max-w-md w-full rounded-2xl shadow-2xl p-6 border border-slate-200 dark:border-slate-700 space-y-4 transform transition-all">
+            <div class="flex justify-between items-start">
+                <div class="flex items-center gap-3">
+                    <div id="modalIconBox" class="w-10 h-10 rounded-xl flex items-center justify-center text-white text-lg font-bold">
+                        <i id="modalIcon" class="fa-solid fa-info"></i>
+                    </div>
+                    <div>
+                        <span id="modalBadge" class="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300">Thông tin</span>
+                        <h3 id="modalTitle" class="text-base font-bold">Tên tiêu đề</h3>
+                    </div>
+                </div>
+                <button onclick="closeModal()" aria-label="Đóng Cửa Sổ" class="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <p id="modalDesc" class="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed"></p>
+
+            <div class="pt-2">
+                <p id="modalTech" class="text-[11px] font-mono p-2.5 rounded-lg bg-slate-100 dark:bg-slate-900 text-blue-600 dark:text-blue-400 font-semibold"></p>
+            </div>
+
+            <button onclick="closeModal()" class="w-full py-2.5 rounded-xl bg-slate-200 dark:bg-slate-700 text-xs font-semibold hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">
+                Đóng cửa sổ
+            </button>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION (THÔNG BÁO THÀNH CÔNG) -->
+    <div id="toast" class="hidden fixed top-20 right-4 z-50 p-4 rounded-xl bg-emerald-600 text-white shadow-xl flex items-center gap-3 text-xs sm:text-sm font-semibold transition-all">
+        <i class="fa-solid fa-circle-check text-lg"></i>
+        <span id="toastMsg">Gửi thông tin thành công!</span>
+    </div>
+
+    <!-- 5. JAVASCRIPT XỬ LÝ CHUYỂN TAB & TƯƠNG TÁC TAP -->
+    <script>
+        let currentTab = 1;
+        const totalTabs = 4;
+
+        // 1. CHUYỂN TAB (TAB SWITCHING)
+        function switchTab(tabNum) {
+            if (tabNum < 1 || tabNum > totalTabs) return;
+            currentTab = tabNum;
+
+            // Cập nhật giao diện ẩn/hiện Tab
+            for (let i = 1; i <= totalTabs; i++) {
+                const tabEl = document.getElementById(`tab-${i}`);
+                const navBtn = document.getElementById(`nav-btn-${i}`);
+                const mobileNavBtn = document.getElementById(`mobile-nav-btn-${i}`);
+
+                if (i === currentTab) {
+                    tabEl.classList.remove('hidden');
+                    tabEl.classList.add('flex');
+                } else {
+                    tabEl.classList.add('hidden');
+                    tabEl.classList.remove('flex');
+                }
+
+                // Cập nhật trạng thái Active trên Header Nav
+                if (navBtn) {
+                    if (i === currentTab) {
+                        navBtn.className = "nav-tab-btn active px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all bg-blue-600 text-white shadow-md shadow-blue-500/30";
+                    } else {
+                        navBtn.className = "nav-tab-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800";
+                    }
+                }
+
+                // Cập nhật trạng thái Active trên Mobile Nav
+                if (mobileNavBtn) {
+                    if (i === currentTab) {
+                        mobileNavBtn.className = "mobile-nav-btn p-2 rounded-lg text-xs bg-blue-600 text-white font-bold";
+                    } else {
+                        mobileNavBtn.className = "mobile-nav-btn p-2 rounded-lg text-xs text-slate-500 dark:text-slate-400";
+                    }
+                }
+            }
+
+            // Cập nhật trạng thái nút Prev / Next
+            const prevBtn = document.getElementById('prevTabBtn');
+            const nextBtn = document.getElementById('nextTabBtn');
+            const stepIndicator = document.getElementById('stepIndicator');
+
+            if (prevBtn) {
+                prevBtn.disabled = (currentTab === 1);
+                prevBtn.style.opacity = (currentTab === 1) ? '0.4' : '1';
+                prevBtn.style.cursor = (currentTab === 1) ? 'not-allowed' : 'pointer';
+            }
+            if (nextBtn) {
+                nextBtn.disabled = (currentTab === totalTabs);
+                nextBtn.style.opacity = (currentTab === totalTabs) ? '0.4' : '1';
+                nextBtn.style.cursor = (currentTab === totalTabs) ? 'not-allowed' : 'pointer';
+            }
+            if (stepIndicator) {
+                stepIndicator.textContent = `Trang ${currentTab} / ${totalTabs}`;
+            }
+
+            // Nạp thanh kỹ năng khi chuyển sang Tab 4
+            if (currentTab === 4) {
+                setTimeout(animateSkills, 150);
+            }
+        }
+
+        function prevTab() {
+            if (currentTab > 1) switchTab(currentTab - 1);
+        }
+
+        function nextTab() {
+            if (currentTab < totalTabs) switchTab(currentTab + 1);
+        }
+
+        // 2. HOẠT ẢNH NẠP PROGRESS BAR KỸ NĂNG (AUTOMATIC SKILL FILL)
+        function animateSkills() {
+            const skillBars = document.querySelectorAll('.skill-bar');
+            skillBars.forEach(bar => {
+                const targetWidth = bar.getAttribute('data-width');
+                bar.style.width = targetWidth;
+            });
+        }
+
+        // 3. DARK / LIGHT MODE TOGGLE
+        const htmlElement = document.documentElement;
+        const themeToggleBtn = document.getElementById('themeToggle');
+        const themeIcon = document.getElementById('themeIcon');
+
+        themeToggleBtn.addEventListener('click', () => {
+            const isDark = htmlElement.classList.toggle('dark');
+            themeIcon.className = isDark ? 'fa-solid fa-sun text-yellow-400' : 'fa-solid fa-moon';
+        });
+
+        // 4. MODAL POPUP
+        const modal = document.getElementById('infoModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalDesc = document.getElementById('modalDesc');
+        const modalTech = document.getElementById('modalTech');
+        const modalBadge = document.getElementById('modalBadge');
+        const modalIcon = document.getElementById('modalIcon');
+        const modalIconBox = document.getElementById('modalIconBox');
+
+        function openModal(title, desc, tech, iconClass = 'fa-info', color = 'blue') {
+            modalTitle.textContent = title;
+            modalDesc.textContent = desc;
+            modalTech.textContent = `Mã chuẩn: ${tech}`;
+            modalBadge.textContent = tech.split(',')[0];
+            modalIcon.className = `fa-solid ${iconClass}`;
+            modalIconBox.className = `w-10 h-10 rounded-xl flex items-center justify-center text-white text-lg font-bold bg-${color}-600`;
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            modal.classList.add('hidden');
+        }
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeModal();
+        });
+
+        // 5. TYPEWRITER EFFECT
+        const typewriterElement = document.getElementById('typewriter');
+        const phrases = ["Giao diện Tap 100%", "Chuẩn W3C Validator", "Tối ưu hóa Mobile", "Responsive Tailwind"];
+        let phraseIndex = 0, charIndex = 0, isDeleting = false;
+
+        function typeEffect() {
+            const currentPhrase = phrases[phraseIndex];
+            typewriterElement.textContent = isDeleting 
+                ? currentPhrase.substring(0, charIndex - 1) 
+                : currentPhrase.substring(0, charIndex + 1);
+
+            charIndex += isDeleting ? -1 : 1;
+            let speed = isDeleting ? 40 : 80;
+
+            if (!isDeleting && charIndex === currentPhrase.length) {
+                speed = 1800;
+                isDeleting = true;
+            } else if (isDeleting && charIndex === 0) {
+                isDeleting = false;
+                phraseIndex = (phraseIndex + 1) % phrases.length;
+                speed = 300;
+            }
+            setTimeout(typeEffect, speed);
+        }
+        typeEffect();
+
+        // 6. FORM VALIDATION & TOAST
+        function handleFormSubmit(event) {
+            event.preventDefault();
+            const toast = document.getElementById('toast');
+            toast.classList.remove('hidden');
+            document.getElementById('contactForm').reset();
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 4000);
+        }
+
+        // Khởi tạo tab ban đầu
+        switchTab(1);
+    </script>
+</body>
+</html>
